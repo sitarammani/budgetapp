@@ -18,12 +18,12 @@ from datetime import datetime
 class SpendingLM:
     """Local LLM interface for spending data analysis"""
     
-    def __init__(self, model="llama2", ollama_host="http://localhost:11434"):
+    def __init__(self, model="mistral", ollama_host="http://localhost:11434"):
         """
         Initialize LLM interface
         
         Args:
-            model: Model name (default: llama2, options: mistral, neural-chat, dolphin-mixtral)
+            model: Model name (default: mistral, options: mistral, llama2, neural-chat, dolphin-mixtral)
             ollama_host: Ollama server URL
         """
         self.model = model
@@ -53,7 +53,7 @@ class SpendingLM:
             print(f"⚠️  Could not list models: {e}")
             return []
     
-    def pull_model(self, model_name: str = "llama2") -> bool:
+    def pull_model(self, model_name: str = "mistral") -> bool:
         """
         Download and install a model
         Note: Mistral is smaller, faster (4GB vs 7GB for llama2)
@@ -242,11 +242,11 @@ Be concise and actionable."""
         # Ensure model is available
         available = self.list_available_models()
         if not available:
-            print("\nNo models available. Downloading llama2...")
-            if not self.pull_model("llama2"):
+            print("\nNo models available. Downloading mistral...")
+            if not self.pull_model("mistral"):
                 print("Failed to download model. Please install manually:")
                 print("  ollama pull mistral  (recommended, faster)")
-                print("  ollama pull llama2")
+                print("  ollama pull mistral")
                 return
         
         if self.model not in available:
@@ -301,7 +301,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="llama2",
+        default="mistral",
         help="LLM model to use (mistral, llama2, neural-chat, etc.)"
     )
     parser.add_argument(
