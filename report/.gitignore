@@ -11,6 +11,8 @@ venv/
 build/
 dist/
 *.egg-info/
+*.dmg
+*.app/
 
 # PyInstaller
 *.spec
