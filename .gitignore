@@ -47,3 +47,16 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Sensitive files - should NOT be committed
+.gmail_oauth_config
+token.json
+credentials.json
+.config/
+*.auth
+*.key
+*.pem
+
+# User-specific
+.env
+.env.local
