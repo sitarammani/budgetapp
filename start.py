@@ -184,7 +184,7 @@ def check_first_time_install():
     print("\n🤖 AI MODEL SETUP")
     print("─"*70)
     print("\nThis application can use AI for natural language queries and insights.")
-    print("Would you like to install Ollama and download the Mistral AI model?")
+    print("Would you like to install Ollama and download the Mistral 7B AI model?")
     print("Note: This requires ~4GB disk space and internet connection.")
     
     try:

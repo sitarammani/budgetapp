@@ -20,12 +20,12 @@ from transaction_logger import get_transaction_logger, init_transaction_logger
 class SpendingLM:
     """Local LLM interface for spending data analysis"""
     
-    def __init__(self, model="mistral", ollama_host="http://localhost:11434"):
+    def __init__(self, model="mistral:7b", ollama_host="http://localhost:11434"):
         """
         Initialize LLM interface
         
         Args:
-            model: Model name (default: mistral, options: mistral, llama2, neural-chat, dolphin-mixtral)
+            model: Model name (default: mistral:7b, options: mistral:7b, llama2, neural-chat, dolphin-mixtral)
             ollama_host: Ollama server URL
         """
         self.model = model

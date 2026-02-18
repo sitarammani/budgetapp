@@ -144,7 +144,7 @@ class MetricsLogger:
         
         self.logger.debug(f"\n🤖 LLM QUERY START")
         self.logger.debug(f"   Question: {question}")
-        self.logger.debug(f"   Model: Mistral")
+        self.logger.debug(f"   Model: Mistral 7B")
         
         # Get current process memory
         process = psutil.Process(os.getpid())

@@ -18,7 +18,7 @@ def install_ollama():
             print('Installing Ollama via script...')
             subprocess.run(['curl', '-fsSL', 'https://ollama.com/install.sh', '|', 'sh'], shell=True)
 
-def pull_model(model='mistral'):
+def pull_model(model='mistral:7b'):
     print(f'Pulling LLM model: {model}...')
     subprocess.run(['ollama', 'pull', model], check=True)
 

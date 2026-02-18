@@ -70,7 +70,7 @@ COMMAND LINE OPTIONS:
 
 MODELS AVAILABLE:
 ───────────────────────────────────────────────────────────────────────
-  • mistral (4GB, fast, recommended) ⭐
+  • mistral:7b (4GB, fast, recommended) ⭐
   • llama2 (7GB, slower, more powerful)
   • neural-chat (4GB, optimized for chat)
   • dolphin-mixtral (26GB, very powerful)
