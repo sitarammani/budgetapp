@@ -1,116 +1,35 @@
-# 💰 Budget App
+# Spending Report Generator — Email with Gmail OAuth2
 
-Track and analyze your expenses with ease. Upload CSV statements, get detailed reports by category, and manage your finances.
+This folder contains `generate_reports_email.py` which generates spending reports (CSV/PDF inputs) and can email the report. Below are simple steps so any user can run the program with their own Google account (no app password required).
 
-## Features
-
-✅ **CSV Import** - Upload bank statements in various formats
-✅ **Smart Categorization** - Automatically categorizes expenses
-✅ **Category Analytics** - View spending by category with percentages
-✅ **Expandable Reports** - Click categories to see individual transactions
-✅ **Data Export** - Export reports as CSV
-✅ **Local Storage** - All data stored securely on your device
-
-## Supported Platforms
-
-- 🌐 Web (Mac, Windows, Linux, Mobile Browser)
-- 🍎 macOS (coming soon)
-- 🤖 Android (coming soon)
-
-## Getting Started
-
-### Web Version
-Simply visit: [Budget App](https://yourusername.github.io/budget-app)
-
-### For Developers
+1) Install dependencies (use a virtualenv):
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/budget-app.git
-cd budget-app/budgetui
-
-# Install dependencies
-flutter pub get
-
-# Run web version
-flutter run -d chrome
-
-# Build for production
-flutter build web --release
+pip install -r requirements.txt
 ```
 
-## CSV Import Format
+2) Create Google OAuth client credentials (one-time per user):
+- Visit https://console.cloud.google.com/
+- Create or select a project and enable the Gmail API
+- Create OAuth 2.0 Client ID credentials → Application type: "Desktop app"
+- Download the JSON and save it as `credentials.json` in this `report/` folder
 
-Supports bank statement formats with:
-- Date column
-- Description/Payee column
-- Amount column
-- Optional payment method column
+3) Run the script and choose Gmail OAuth2 when prompted:
 
-### Supported Columns:
-- Date (various formats)
-- Description / Payee / Merchant
-- Amount / Debit / Credit
-- Payment Method / Account
-- Status (for cleared transactions)
+```bash
+cd report
+python generate_reports_email.py
+```
 
-### Auto-Filters:
-- Income/Payroll entries
-- Transfers between accounts
-- Balance rows
-- Summary rows
+- When asked to send the report via email, enter `y`.
+- When asked "Use Gmail OAuth2 (recommended)?", enter `y`.
+- A browser window will open to complete Google sign-in and consent; after that a `token.json` file will be saved for reuse.
 
-## Expense Categories
+Notes
+- Each user should create or reuse their own `credentials.json` and will receive their own `token.json` after the OAuth flow.
+- If you prefer not to use OAuth, choose `n` to use the SMTP fallback (requires SMTP credentials).
+- Keep `credentials.json` and `token.json` private.
 
-- 🛒 Shopping & Retail
-- 🍔 Restaurants & Food
-- ⛽ Auto & Gas
-- 🏠 Home & Services
-- 🎮 Entertainment
-- 💳 Utilities Bills & Insurance
-- 🛒 Groceries & Markets
-
-## Report Features
-
-- **Total Amount** - Sum of all expenses in period
-- **Average Daily** - Calculate daily spending average
-- **Highest Category** - Identify top spending category
-- **Category Breakdown** - Visualize spending distribution
-- **Expense Details** - Expand categories to see individual transactions
-
-## CSV Export
-
-Export reports in CSV format for use in Excel, Google Sheets, or other analysis tools.
-
-## Privacy
-
-✅ **All data is stored locally** on your device  
-✅ **No data sent to servers**  
-✅ **100% private and secure**  
-
-## Screenshots
-
-[Add screenshots here after deployment]
-
-## Tech Stack
-
-- **Frontend:** Flutter/Dart
-- **Language Support:** English
-- **Data Storage:** Browser LocalStorage
-- **CSV Parsing:** Custom RFC 4180 compliant parser
-
-## Contributing
-
-Contributions welcome! Please feel free to submit issues or pull requests.
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-For bugs or feature requests, please open an GitHub issue.
-
----
-
-**Made with ❤️ for better expense tracking**
+If you'd like, I can also:
+- Add a helper script that checks for `credentials.json` in common locations, or
+- Add a small `setup_oauth.sh` with step-by-step commands to help create the OAuth client.
