@@ -70,7 +70,7 @@ COMMAND LINE OPTIONS:
 
 MODELS AVAILABLE:
 ───────────────────────────────────────────────────────────────────────
-  • mistral:7b (4GB, fast, recommended) ⭐
+  • llama2 (7B, fast, recommended) ⭐
   • llama2 (7GB, slower, more powerful)
   • neural-chat (4GB, optimized for chat)
   • dolphin-mixtral (26GB, very powerful)
@@ -89,8 +89,48 @@ GETTING HELP:
 
 """)
 
+def check_ollama_setup():
+    """Check if Ollama is properly set up"""
+    import requests
+    
+    try:
+        # Check if Ollama is running
+        response = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m["name"].split(":")[0] for m in data.get("models", [])]
+            
+            if not models:
+                print("⚠️  Ollama is running but no models found")
+                print("   Download a model with: ollama pull llama2")
+                return False
+            
+            if "llama2" not in models:
+                print(f"⚠️  Found models: {', '.join(set(models))}")
+                print(f"   Recommended: ollama pull llama2")
+                return False
+            
+            return True
+        else:
+            print("⚠️  Ollama server not responding properly")
+            return False
+    except requests.exceptions.ConnectionError:
+        print("⚠️  Ollama is not running!")
+        print("   Start it with: ollama serve")
+        return False
+    except Exception as e:
+        print(f"⚠️  Error checking Ollama: {e}")
+        return False
+
 def main():
     print_banner()
+    
+    # Check Ollama setup
+    if not check_ollama_setup():
+        print("\n❌ Ollama setup incomplete. Fix the issues above and try again.\n")
+        return
+    
+    print("✅ Ollama and model ready!\n")
     
     # Check if this is first time
     if len(sys.argv) == 1:

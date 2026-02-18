@@ -110,6 +110,111 @@ def is_ollama_running():
     except:
         return False
 
+def check_model_installed(model="llama2"):
+    """Check if a specific model is installed in Ollama"""
+    try:
+        import requests
+        response = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m["name"].split(":")[0] for m in data.get("models", [])]
+            return model in models
+    except:
+        pass
+    return False
+
+def prompt_install_model_now():
+    """Prompt user to install AI model during startup"""
+    print("\n" + "="*70)
+    print("🤖 AI MODEL NOT FOUND")
+    print("="*70)
+    print("\nThe AI model (Llama 2) is not installed or not available.")
+    print("Would you like to install it now?")
+    print("(This will take 5-15 minutes, one-time only)\n")
+    
+    try:
+        response = input("Install AI model now? (y/n): ").strip().lower()
+    except EOFError:
+        response = 'n'
+    
+    if response == 'y':
+        print("\n📥 Starting Ollama model installation...\n")
+        return prompt_for_ai_model_install()
+    else:
+        print("\n➡️  AI features will be disabled")
+        print("   You can enable them later by running: ollama pull llama2\n")
+        return False
+
+def prompt_for_ai_model_install():
+    """Prompt user to install AI model during first-time setup"""
+    if not check_ollama_installed():
+        print("\n⚠️  Ollama not installed")
+        print("   AI features require Ollama. Install from: https://ollama.ai")
+        print("   AI features will be disabled.\n")
+        return False
+    
+    print("\n" + "="*70)
+    print("🤖 AI FEATURES SETUP")
+    print("="*70)
+    print("\nThis app can analyze your spending with AI-powered insights.")
+    print("This requires downloading the Llama 2 model (~4GB).")
+    print("\nWould you like to install the AI model now?")
+    print("(You can skip this and enable AI features later)")
+    
+    try:
+        response = input("\nInstall AI model? (y/n): ").strip().lower()
+    except EOFError:
+        response = 'n'
+    
+    if response == 'y':
+        print("\n📥 Starting Ollama model installation...")
+        print("   This may take 5-15 minutes depending on your connection.")
+        print("   Please keep the app running.\n")
+        
+        try:
+            # Start Ollama server if not running
+            if not is_ollama_running():
+                print("🚀 Starting Ollama server...")
+                subprocess.Popen(
+                    ["ollama", "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    preexec_fn=os.setsid if sys.platform != "win32" else None
+                )
+                time.sleep(2)
+            
+            # Pull the model
+            print("📥 Downloading Llama 2 model (this is a one-time operation)...")
+            result = subprocess.run(
+                ["ollama", "pull", "llama2"],
+                capture_output=True,
+                text=True,
+                timeout=900  # 15 minutes timeout
+            )
+            
+            if result.returncode == 0:
+                print("\n✅ Llama 2 model installed successfully!")
+                print("   AI features are now enabled.\n")
+                return True
+            else:
+                print("\n❌ Failed to install Llama 2 model")
+                print("   Error:", result.stderr[:200])
+                print("   AI features will be disabled.\n")
+                return False
+        except subprocess.TimeoutExpired:
+            print("\n⏱️  Model installation timed out")
+            print("   Please try again later or install manually: ollama pull llama2")
+            print("   AI features will be disabled.\n")
+            return False
+        except Exception as e:
+            print(f"\n❌ Error installing model: {e}")
+            print("   AI features will be disabled.\n")
+            return False
+    else:
+        print("\n➡️  AI features disabled")
+        print("   You can enable them later by running: ollama pull llama2\n")
+        return False
+
 def start_ollama():
     """Start Ollama server in background"""
     try:
@@ -184,27 +289,23 @@ def check_first_time_install():
     print("\n🤖 AI MODEL SETUP")
     print("─"*70)
     print("\nThis application can use AI for natural language queries and insights.")
-    print("Would you like to install Ollama and download the Mistral 7B AI model?")
-    print("Note: This requires ~4GB disk space and internet connection.")
+    print("Would you like to install Ollama and download the Llama 2 AI model?")
+    print("Note: This requires ~4GB disk space and 5-15 minutes download time.")
+    print("(You can skip this - AI features will be easily enabled later)")
     
     try:
-        response = input("\nInstall AI model? (y/n): ").strip().lower()
+        response = input("\nInstall AI model now? (y/n): ").strip().lower()
     except EOFError:
         response = 'y'
     
     install_model = response == 'y' or response == ''
     
-    if install_model:
-        print("✅ AI model will be installed during startup")
-    else:
-        print("ℹ️  AI features will be disabled. You can enable them later by running:")
-        print("   python3 setup_llm.py")
-    
-    # Create config file
+    # Create config file (save install preference)
     config = {
         'version': '1.0',
         'log_location': log_location,
         'install_model': install_model,
+        'ai_feature_enabled': False,  # Will be set after installation attempt
         'created_at': str(Path(config_file).stat().st_mtime if config_file.exists() else time.time()),
         'first_time_setup_complete': True
     }
@@ -220,11 +321,25 @@ def check_first_time_install():
         print(f"\n✅ Configuration saved")
         print(f"   Logs location: {log_location}\n")
         
-        return True
     except Exception as e:
         print(f"\n❌ Error creating configuration: {e}")
         print(f"   Using default: {config_dir}\n")
-        return True
+    
+    # If user wants to install model, do it NOW (before progress bar)
+    if install_model:
+        ai_enabled = prompt_for_ai_model_install()
+        config['ai_feature_enabled'] = ai_enabled
+        # Save updated config
+        try:
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+        except:
+            pass
+    else:
+        print("➡️  Skipping AI model installation")
+        print("   You can enable it later by running: ollama pull llama2\n")
+    
+    return config
 
 def main():
     """Main launcher with progress bar"""
@@ -234,18 +349,22 @@ def main():
     config_file = config_dir / 'config.json'
     is_first_time = not config_file.exists()
     
-    if is_first_time:
-        # Show first-time setup
-        check_first_time_install()
-    
-    # Load configuration
     config = {}
-    if config_file.exists():
-        try:
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-        except:
-            config = {}
+    
+    if is_first_time:
+        # Show first-time setup and perform AI model installation if requested
+        config = check_first_time_install()
+    else:
+        # Load configuration for returning users
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+            except:
+                config = {}
+        
+        # Don't pre-set ai_feature_enabled for returning users
+        # Let the status check during startup handle it
     
     # Now show progress bar for background startup tasks
     sys.stdout.write("\n")
@@ -256,8 +375,8 @@ def main():
     sys.stdout.write("\n")
     sys.stdout.flush()
     
-    # Initialize progress bar
-    progress = ProgressBar(total_steps=11)
+    # Initialize progress bar (reduced from 11 since model install happens before startup)
+    progress = ProgressBar(total_steps=10)
     
     try:
         # Step 1: Check Python version
@@ -280,50 +399,51 @@ def main():
         if not check_dependencies():
             print("⚠️  Some dependencies missing. Continuing...", flush=True)
         
-        # Step 4: Setup Ollama and model
-        progress.update("Setting up Ollama and AI models...")
+        # Step 4: AI model status - check if model is actually available
+        progress.update("Verifying AI model status...")
         time.sleep(0.1)
-        if config.get('install_model', False):
-            bootstrap_path = os.path.join(os.path.dirname(__file__), "bootstrap_ollama.py")
-            if os.path.exists(bootstrap_path):
-                try:
-                    if getattr(sys, 'frozen', False):
-                        import bootstrap_ollama
-                        bootstrap_ollama.main()
-                    else:
-                        result_bootstrap = subprocess.run([sys.executable, bootstrap_path], check=True, capture_output=True)
-                    print("✅ Ollama/model setup complete.")
-                except Exception as e:
-                    print(f"⚠️  Ollama/model setup failed: {e}")
-            else:
-                print("⚠️  bootstrap_ollama.py not found, skipping Ollama/model setup.")
-        else:
-            print("ℹ️  AI model setup skipped (can be enabled later with setup_llm.py)")
-            time.sleep(0.1)
+        model_available = check_model_installed()
         
-        # Step 6: Check Ollama installation
+        if model_available:
+            print("✅ AI features enabled (Llama 2 model found)")
+            config['ai_feature_enabled'] = True
+        else:
+            # Model not available - should we ask user to install?
+            # Only skip asking if user explicitly declined during first-time setup
+            explicitly_declined = config.get('install_model') == False
+            
+            if explicitly_declined:
+                # User said NO during first-time setup, respect their choice
+                print("ℹ️  AI features disabled (as per your preference)")
+                config['ai_feature_enabled'] = False
+            else:
+                # User hasn't explicitly declined, offer to install now
+                ai_enabled_now = prompt_install_model_now()
+                config['ai_feature_enabled'] = ai_enabled_now
+        
+        # Step 5: Check Ollama installation
         progress.update("Detecting Ollama installation...")
         time.sleep(0.1)
         ollama_installed = check_ollama_installed()
         
-        # Step 7-8: Start Ollama if available
-        if ollama_installed:
+        # Step 6-7: Start Ollama if available and AI is enabled
+        if ollama_installed and config.get('ai_feature_enabled', False):
             progress.update("Starting Ollama AI server...")
             time.sleep(0.2)
             start_ollama()
         else:
-            progress.update("Ollama not available (AI features disabled)...")
+            progress.update("Preparing application...")
             time.sleep(0.1)
         
-        # Step 9: Final preparations
+        # Step 8: Final preparations
         progress.update("Preparing application environment...")
         time.sleep(0.2)
         
-        # Step 10: Loading resources
+        # Step 9: Loading resources
         progress.update("Loading application resources...")
         time.sleep(0.1)
         
-        # Step 11: Complete
+        # Step 10: Complete
         progress.update("Finalizing startup sequence...")
         time.sleep(0.1)
         
@@ -331,6 +451,14 @@ def main():
         progress.complete()
         
         # Show "Application started" only after all background work is done
+        # Save config with AI feature status
+        try:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+        except:
+            pass
+        
         print("="*70, flush=True)
         print("✨ APPLICATION STARTED - ALL SYSTEMS READY", flush=True)
         print("="*70, flush=True)

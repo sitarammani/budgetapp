@@ -99,7 +99,7 @@ The app uses Ollama for local AI processing:
 ollama serve
 
 # Pull the required model (done automatically by the app)
-ollama pull mistral:7b
+ollama pull llama2
 ```
 
 ## 📊 Data Files
@@ -163,7 +163,7 @@ This project is open source. See individual files for license information.
 
 **AI features not working:**
 - Install and start Ollama
-- Ensure the Mistral 7B model is downloaded
+- Ensure the Llama 2 model is downloaded
 - Check Ollama service status
 
 ---

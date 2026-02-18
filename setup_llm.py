@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Setup script for Local LLM Natural Language Query System
-Installs and configures Ollama + Mistral 7B model
+Installs and configures Ollama + Llama 2 model
 """
 
 import subprocess
@@ -99,13 +99,13 @@ def main():
         print("⚠️  No models installed yet")
     
     # Download Mistral if not present
-    if 'mistral' not in models and 'mistral:latest' not in models and 'mistral:7b' not in models:
-        print("\n📥 Downloading Mistral 7B model (this may take 5-10 minutes)...")
+    if 'llama2' not in models and 'llama2:latest' not in models:
+        print("\n📥 Downloading Llama 2 model (this may take 5-10 minutes)...")
         print("   Size: 4GB | Speed: Fast | Quality: Excellent")
         
         # Download with progress
         process = subprocess.Popen(
-            ["ollama", "pull", "mistral:7b"],
+            ["ollama", "pull", "llama2"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -120,19 +120,19 @@ def main():
         process.wait()
         
         if process.returncode == 0:
-            print("✓ Mistral 7B model ready!")
+            print("✓ Llama 2 model ready!")
         else:
-            print("❌ Failed to download Mistral 7B")
-            print("   Try manually: ollama pull mistral:7b")
+            print("❌ Failed to download Llama 2")
+            print("   Try manually: ollama pull llama2")
             sys.exit(1)
     else:
-        print("✓ Mistral 7B model already installed")
+        print("✓ Llama 2 model already installed")
     
     # Test LLM connection
     print("\n🧪 Testing LLM connection...")
     from spending_lm import SpendingLM
     
-    lm = SpendingLM(model="mistral:7b")
+    lm = SpendingLM(model="llama2")
     
     if lm.is_ollama_running():
         print("✓ LLM service connected")

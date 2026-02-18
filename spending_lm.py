@@ -20,12 +20,12 @@ from transaction_logger import get_transaction_logger, init_transaction_logger
 class SpendingLM:
     """Local LLM interface for spending data analysis"""
     
-    def __init__(self, model="mistral:7b", ollama_host="http://localhost:11434"):
+    def __init__(self, model="llama2", ollama_host="http://localhost:11434"):
         """
         Initialize LLM interface
         
         Args:
-            model: Model name (default: mistral:7b, options: mistral:7b, llama2, neural-chat, dolphin-mixtral)
+            model: Model name (default: llama2, options: llama2, mistral:7b, neural-chat, dolphin-mixtral)
             ollama_host: Ollama server URL
         """
         self.model = model
@@ -204,8 +204,21 @@ Be concise and actionable with specific dollar amounts."""
                 )
                 
                 return response_text
+            elif response.status_code == 404:
+                # Model not found
+                error_msg = f"❌ Model '{self.model}' not found.\n"
+                error_msg += f"   Install with: ollama pull {self.model}\n"
+                error_msg += f"   Then restart Ollama: ollama serve"
+                metrics.log_potential_hallucination(question, error_msg, severity="ERROR")
+                return error_msg
             else:
-                error_msg = f"Error: {response.status_code}"
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("error", str(response.status_code))
+                except:
+                    error_detail = str(response.status_code)
+                
+                error_msg = f"Error: {error_detail}"
                 metrics.log_potential_hallucination(question, error_msg, severity="ERROR")
                 return error_msg
                 
@@ -274,8 +287,21 @@ Please provide a clear, concise answer based on the spending data provided. If a
                 )
                 
                 return response_text
+            elif response.status_code == 404:
+                # Model not found
+                error_msg = f"❌ Model '{self.model}' not found.\n"
+                error_msg += f"   Install with: ollama pull {self.model}\n"
+                error_msg += f"   Then restart Ollama: ollama serve"
+                metrics.log_potential_hallucination(question, error_msg, severity="ERROR")
+                return error_msg
             else:
-                error_msg = f"Error: {response.status_code} - {response.text}"
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("error", f"HTTP {response.status_code}")
+                except:
+                    error_detail = response.text or f"HTTP {response.status_code}"
+                
+                error_msg = f"❌ LLM Error: {error_detail}"
                 metrics.log_potential_hallucination(
                     question, 
                     error_msg, 

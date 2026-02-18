@@ -32,12 +32,25 @@ else:
         # Running as script
         BASE_PATH = os.path.dirname(__file__)
 
+def get_ai_feature_enabled():
+    """Load AI feature enabled status from config"""
+    try:
+        config_file = Path.home() / '.config' / 'SpendingApp' / 'config.json'
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                return config.get('ai_feature_enabled', False)
+    except:
+        pass
+    return False
+
 def print_banner():
     """Print application banner"""
     print("\n" + "="*70)
     print("💰 SPENDING REPORT & ANALYSIS SYSTEM")
     print("="*70)
-    print("Manage your finances with AI-powered insights\n")
+    ai_status = "✅ AI Enabled" if get_ai_feature_enabled() else "ℹ️  AI Disabled"
+    print(f"Manage your finances with AI-powered insights [{ai_status}]\n")
 
 def print_menu():
     """Print main menu options"""
@@ -45,11 +58,19 @@ def print_menu():
     print("📋 MAIN MENU - SELECT AN OPTION")
     print("─"*70 + "\n")
     
+    ai_enabled = get_ai_feature_enabled()
+    
     options = [
         ("1", "📊 Generate Spending Report", 
          "Create Excel report from bank statements"),
-        ("2", "🤖 AI Assistant & Analysis",
-         "Ask about spending, query logs, view history"),
+    ]
+    
+    # Only include AI Assistant if AI feature is enabled
+    if ai_enabled:
+        options.append(("2", "🤖 AI Assistant & Analysis",
+         "Ask about spending, query logs, view history"))
+    
+    options.extend([
         ("3", "⚙️  Manage Categories & Rules",
          "Customize categories and categorization rules"),
         ("4", "📈 View Category Hierarchy",
@@ -62,7 +83,7 @@ def print_menu():
          "View system performance metrics"),
         ("0", "❌ Exit",
          "Close the application"),
-    ]
+    ])
     
     for num, title, desc in options:
         print(f"  {num}  {title}")
@@ -608,23 +629,43 @@ def interactive_menu():
     metrics_logger_info = "ℹ️  Metrics logging enabled - tracking performance and usage patterns"
     print(f"\n{metrics_logger_info}")
     
+    ai_enabled = get_ai_feature_enabled()
+    if not ai_enabled:
+        print("\n⚠️  AI FEATURES DISABLED")
+        print("   To enable AI features, run: ollama pull llama2")
+        print("   Then restart this application.\n")
+    
     print_banner()
     
+    ai_enabled = get_ai_feature_enabled()
+    
+    # Build menu_actions dynamically based on AI feature status
     menu_actions = {
         "1": ("Reports", menu_reports),
-        "2": ("AI Assistant", menu_ai_assistant),
-        "3": ("Manage Rules", menu_manage_rules),
-        "4": ("View Hierarchy", menu_hierarchy),
-        "5": ("Export Rules", menu_export),
-        "6": ("Help", menu_help),
-        "7": ("Performance Summary", lambda: (metrics.display_summary(), True)[1]),
-        "0": ("Exit", None),
     }
+    
+    if ai_enabled:
+        menu_actions["2"] = ("AI Assistant", menu_ai_assistant)
+        menu_actions["3"] = ("Manage Rules", menu_manage_rules)
+        menu_actions["4"] = ("View Hierarchy", menu_hierarchy)
+        menu_actions["5"] = ("Export Rules", menu_export)
+        menu_actions["6"] = ("Help", menu_help)
+        menu_actions["7"] = ("Performance Summary", lambda: (metrics.display_summary(), True)[1])
+    else:
+        menu_actions["2"] = ("Manage Rules", menu_manage_rules)
+        menu_actions["3"] = ("View Hierarchy", menu_hierarchy)
+        menu_actions["4"] = ("Export Rules", menu_export)
+        menu_actions["5"] = ("Help", menu_help)
+        menu_actions["6"] = ("Performance Summary", lambda: (metrics.display_summary(), True)[1])
+    
+    menu_actions["0"] = ("Exit", None)
+    
+    max_choice = "7" if ai_enabled else "6"
     
     while True:
         print_menu()
         try:
-            choice = input("👉 Enter your choice (0-7): ").strip()
+            choice = input(f"👉 Enter your choice (0-{max_choice}): ").strip()
         except EOFError:
             # If running interactively, re-display the menu; if stdin is not a TTY
             # (non-interactive run or piped input) then exit gracefully and save metrics.
@@ -644,7 +685,7 @@ def interactive_menu():
             break
         
         if choice not in menu_actions:
-            print("\n❌ Invalid choice. Please select 0-7")
+            print(f"\n❌ Invalid choice. Please select 0-{max_choice}")
             continue
         
         title, action = menu_actions[choice]
