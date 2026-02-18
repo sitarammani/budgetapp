@@ -33,3 +33,4 @@ token.json
 # Misc
 *.pyc
 *.pyo
+.gmail_oauth_config
