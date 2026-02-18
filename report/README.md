@@ -169,3 +169,8 @@ This project is open source. See individual files for license information.
 ---
 
 **Built with ❤️ for personal finance management**
+
+## Citation
+
+Sitaram Mani (2026). BudgetApp [Software]. Zenodo. https://doi.org/10.5281/zenodo.1234567
+
