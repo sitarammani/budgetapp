@@ -1,13 +1,18 @@
 # -*- mode: python -*-
 import sys
+import os
 from PyInstaller.utils.hooks import collect_data_files
+
+datas = [('categories.csv', '.'), ('category_rules.csv', '.')]
+if os.path.exists('.gmail_oauth_config'):
+    datas.append(('.gmail_oauth_config', '.'))
 
 a = Analysis([
     'start.py',
 ],
     pathex=[],
     binaries=[],
-    datas=[('categories.csv', '.'), ('category_rules.csv', '.'), ('.gmail_oauth_config', '.')],
+    datas=datas,
     hiddenimports=['pandas', 'openpyxl', 'xlsxwriter', 'requests', 'bootstrap_ollama', 'natural_language_query', 'manage_rules', 'generate_reports_email'],
     hookspath=[],
     runtime_hooks=[],

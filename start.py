@@ -180,10 +180,31 @@ def check_first_time_install():
         except EOFError:
             log_location = str(config_dir)
     
+    # Ask for AI model installation
+    print("\n🤖 AI MODEL SETUP")
+    print("─"*70)
+    print("\nThis application can use AI for natural language queries and insights.")
+    print("Would you like to install Ollama and download the Mistral AI model?")
+    print("Note: This requires ~4GB disk space and internet connection.")
+    
+    try:
+        response = input("\nInstall AI model? (y/n): ").strip().lower()
+    except EOFError:
+        response = 'y'
+    
+    install_model = response == 'y' or response == ''
+    
+    if install_model:
+        print("✅ AI model will be installed during startup")
+    else:
+        print("ℹ️  AI features will be disabled. You can enable them later by running:")
+        print("   python3 setup_llm.py")
+    
     # Create config file
     config = {
         'version': '1.0',
         'log_location': log_location,
+        'install_model': install_model,
         'created_at': str(Path(config_file).stat().st_mtime if config_file.exists() else time.time()),
         'first_time_setup_complete': True
     }
@@ -217,6 +238,15 @@ def main():
         # Show first-time setup
         check_first_time_install()
     
+    # Load configuration
+    config = {}
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+        except:
+            config = {}
+    
     # Now show progress bar for background startup tasks
     sys.stdout.write("\n")
     sys.stdout.flush()
@@ -227,7 +257,7 @@ def main():
     sys.stdout.flush()
     
     # Initialize progress bar
-    progress = ProgressBar(total_steps=10)
+    progress = ProgressBar(total_steps=11)
     
     try:
         # Step 1: Check Python version
@@ -250,16 +280,33 @@ def main():
         if not check_dependencies():
             print("⚠️  Some dependencies missing. Continuing...", flush=True)
         
-        # Step 4: Load configuration
-        progress.update("Loading configuration...")
+        # Step 4: Setup Ollama and model
+        progress.update("Setting up Ollama and AI models...")
         time.sleep(0.1)
+        if config.get('install_model', False):
+            bootstrap_path = os.path.join(os.path.dirname(__file__), "bootstrap_ollama.py")
+            if os.path.exists(bootstrap_path):
+                try:
+                    if getattr(sys, 'frozen', False):
+                        import bootstrap_ollama
+                        bootstrap_ollama.main()
+                    else:
+                        result_bootstrap = subprocess.run([sys.executable, bootstrap_path], check=True, capture_output=True)
+                    print("✅ Ollama/model setup complete.")
+                except Exception as e:
+                    print(f"⚠️  Ollama/model setup failed: {e}")
+            else:
+                print("⚠️  bootstrap_ollama.py not found, skipping Ollama/model setup.")
+        else:
+            print("ℹ️  AI model setup skipped (can be enabled later with setup_llm.py)")
+            time.sleep(0.1)
         
-        # Step 5: Check Ollama installation
+        # Step 6: Check Ollama installation
         progress.update("Detecting Ollama installation...")
         time.sleep(0.1)
         ollama_installed = check_ollama_installed()
         
-        # Step 6-7: Start Ollama if available
+        # Step 7-8: Start Ollama if available
         if ollama_installed:
             progress.update("Starting Ollama AI server...")
             time.sleep(0.2)
@@ -268,15 +315,15 @@ def main():
             progress.update("Ollama not available (AI features disabled)...")
             time.sleep(0.1)
         
-        # Step 8: Final preparations
+        # Step 9: Final preparations
         progress.update("Preparing application environment...")
         time.sleep(0.2)
         
-        # Step 9: Loading resources
+        # Step 10: Loading resources
         progress.update("Loading application resources...")
         time.sleep(0.1)
         
-        # Step 10: Complete
+        # Step 11: Complete
         progress.update("Finalizing startup sequence...")
         time.sleep(0.1)
         
@@ -291,22 +338,6 @@ def main():
         sys.stdout.flush()
         sys.stderr.flush()
         
-        # Run bootstrap script for Ollama/model install
-        bootstrap_path = os.path.join(os.path.dirname(__file__), "bootstrap_ollama.py")
-        if os.path.exists(bootstrap_path):
-            progress.update("Setting up Ollama and LLM model...")
-            try:
-                if getattr(sys, 'frozen', False):
-                    import bootstrap_ollama
-                    bootstrap_ollama.main()
-                else:
-                    result_bootstrap = subprocess.run([sys.executable, bootstrap_path], check=True)
-                print("✅ Ollama/model setup complete.")
-            except Exception as e:
-                print(f"⚠️  Ollama/model setup failed: {e}")
-        else:
-            print("⚠️  bootstrap_ollama.py not found, skipping Ollama/model setup.")
-
         # Launch main app
         if getattr(sys, 'frozen', False):
             # In frozen app, import and run app
