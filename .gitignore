@@ -60,3 +60,8 @@ credentials.json
 # User-specific
 .env
 .env.local
+
+# Screenshots (platform-specific, large files)
+screenshots/*.png
+screenshots/*.jpg
+screenshots/*.jpeg
