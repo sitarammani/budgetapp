@@ -663,7 +663,7 @@ except Exception:
 # -------------------------------------------------------------------
 # 9. Write Excel
 # -------------------------------------------------------------------
-OUTPUT_FILE = f"Spending_Report_{mm}_{yyyy}.xlsx"
+OUTPUT_FILE = os.path.join(dir_path, f"Spending_Report_{mm}_{yyyy}.xlsx")
 
 try:
     with pd.ExcelWriter(OUTPUT_FILE, engine="xlsxwriter") as writer:
@@ -751,128 +751,29 @@ import getpass
 
 import sys
 
-# Determine sending behavior: CLI flag, interactive prompt, or skip in non-interactive mode
-if args.cli_send_email:
-    send_email = True
-else:
-    try:
-        print("\nWould you like to send this report via email? (y/n): ", end="")
-        send_email = input().strip().lower() == 'y'
-    except EOFError:
-        send_email = False
+# Check if email should be sent
+send_email = False
 
-if send_email:
-    print("\n" + "="*70)
-    print("EMAIL CONFIGURATION")
-    print("="*70)
-    sender_email = input("\nSender email: ").strip()
-    if not validate_email(sender_email):
-        print(f"❌ Invalid email format: {sender_email}")
-        send_email = False
-    else:
-        recipient_email = input("Recipient email: ").strip()
-        if not validate_email(recipient_email):
-            print(f"❌ Invalid email format: {recipient_email}")
-            send_email = False
-    
-    if not send_email:
-        print("Skipping email delivery.")
-
-if send_email:
-    # Build email content
-    subject = f"Spending Report for {mm}/{yyyy}"
-    report2_html_table = report2_df.to_html(index=False, border=1)
-    report3_html_table = report3_df[["Date", "Category", "Vendor", "Amount"]].to_html(index=False, border=1)
-    body_html = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif;">
-    <p>Hello,</p>
-    <p>Your spending report for <strong>{mm}/{yyyy}</strong> is attached.</p>
-    <h3>Category Summary</h3>
-    {report2_html_table}
-    <h3>Large Transactions (> $200)</h3>
-    {report3_html_table}
-    <p>Best regards,<br>Automated Report System</p>
-    </body>
-    </html>
-    """
-
-    msg = MIMEMultipart("alternative")
-    msg["From"] = sender_email
-    msg["To"] = recipient_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body_html, "html"))
-
-    # Attach Excel file
-    with open(OUTPUT_FILE, "rb") as attachment:
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(attachment.read())
-    encoders.encode_base64(part)
-    part.add_header("Content-Disposition", f"attachment; filename= {OUTPUT_FILE}")
-    msg.attach(part)
-
-    # ========================================================
-    # SEND EMAIL VIA OAUTH2
-    # ========================================================
-    print("\n" + "="*70)
-    print("EMAIL DELIVERY (OAuth2)")
-    print("="*70)
-
-    auth = GmailAuth()
-    
-    try:
-        auth_method, _ = auth.prompt_authentication_method()
-        print("\n⏳ Opening browser for Google authentication...")
-        auth.send_via_gmail_api(sender_email, recipient_email, msg)
-        print(f"✅ Email sent successfully to {recipient_email}!\n")
-    except FileNotFoundError as e:
-        print(f"\n❌ {e}")
-        send_email = False
-    except Exception as e:
-        print(f"❌ Error sending email: {e}")
-        send_email = False
-
-# -------------------------------------------------------------------
-# 11. Print Summary
-# -------------------------------------------------------------------
-print("\n" + "="*70)
-print(f"SPENDING SUMMARY FOR {mm}/{yyyy}")
-print("="*70)
-print("\nCategory Breakdown:")
-print("-"*70)
-for cat, total in cat_totals:
-    pct = abs(total) / abs(grand_total) * 100 if grand_total != 0 else 0
-    print(f"  {cat:40s} ${abs(total):>10.2f} ({pct:5.1f}%)")
-print("-"*70)
-print(f"  {'TOTAL':40s} ${abs(grand_total):>10.2f} (100.0%)")
-print("="*70)
-
-if len(report3_df) > 0:
-    print(f"\nLarge Transactions (> $200): {len(report3_df)}")
-    print("-"*70)
-    for _, row in report3_df.head(10).iterrows():
-        print(f"  {row['Date']} | {row['Vendor']:40s} ${abs(row['Amount']):>10.2f}")
-    if len(report3_df) > 10:
-        print(f"  ... and {len(report3_df) - 10} more")
-else:
-    print("\nNo transactions over $200")
-
-print("\n")
-
-# -------------------------------------------------------------------
-# 12. Suggest Using LLM for Natural Language Analysis
-# -------------------------------------------------------------------
-print("="*70)
-print("💡 TIP: Ask questions about your spending with AI!")
-print("="*70)
-print("\nUse Natural Language Query to analyze your data:")
-print("\n  python3 natural_language_query.py")
-print("\nExample questions:")
-print('  • "How much did I spend on education?"')
-print('  • "What\'s my highest spending category?"')
-print('  • "Analyze my spending patterns and suggest savings"')
-print("\nRuns completely locally - no API keys or internet needed!")
-print("="*70 + "\n")
+# Check if user enabled email sending from the app
+try:
+    # Read sender email from config to determine if email was requested
+    import json
+    from pathlib import Path
+    config_file = Path.home() / '.config' / 'SpendingApp' / 'config.json'
+    config = {}
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    # Check if sender email is configured (indicates user might want email)
+    if config.get('sender_email'):
+        # Email composition happens in app.py after user confirmation
+        # This script just needs to store data for email in Excel
+        
+        # Generate HTML tables for email body (in case needed)
+        report2_html_table = report2_df.to_html(index=False, border=1)
+        report3_html_table = report3_df[["Date", "Category", "Vendor", "Amount"]].to_html(index=False, border=1)
+except Exception:
+    pass
 
 # Save metrics summary for this run (separate process from the main app)
 try:

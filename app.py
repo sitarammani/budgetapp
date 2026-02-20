@@ -52,6 +52,18 @@ def print_banner():
     ai_status = "✅ AI Enabled" if get_ai_feature_enabled() else "ℹ️  AI Disabled"
     print(f"Manage your finances with AI-powered insights [{ai_status}]\n")
 
+def get_sender_email_from_config():
+    """Get saved sender email from config"""
+    config_file = Path.home() / '.config' / 'SpendingApp' / 'config.json'
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                return config.get('sender_email')
+        except Exception:
+            return None
+    return None
+
 def print_menu():
     """Print main menu options"""
     print("\n" + "─"*70)
@@ -114,10 +126,18 @@ def menu_reports():
         except EOFError:
             month_input = ""
 
+        # Ask about email before generating report
+        try:
+            send_ans = input("\nWould you like to send this report via email? (y/n): ").strip().lower()
+        except EOFError:
+            send_ans = "n"
+
         cli_args = [sys.executable, "generate_reports_email.py", "--dir", dir_path, "--files", "all"]
         if month_input:
             cli_args += ["--month", month_input]
 
+        print("\nGenerating report...\n")
+        
         # Record timestamp to find child metrics file after subprocess completes
         start_ts = time.time()
 
@@ -180,6 +200,108 @@ def menu_reports():
                             continue
         except Exception:
             pass
+        
+        # Handle email sending if user said yes
+        if send_ans == "y":
+            sender_email = get_sender_email_from_config()
+            if not sender_email:
+                print("❌ No sender email configured. Please restart the app to configure email.")
+            else:
+                # Find the generated report file
+                report_files = [f for f in os.listdir(dir_path) if f.startswith("Spending_Report") and f.endswith(".xlsx")]
+                if not report_files:
+                    print("❌ No report file found.")
+                else:
+                    report_path = os.path.join(dir_path, report_files[0])
+                    try:
+                        to_addr = input("\nEnter recipient email address: ").strip()
+                    except EOFError:
+                        to_addr = ""
+                    
+                    if to_addr:
+                        # Compose email with summary tables
+                        try:
+                            import pandas as pd
+                            from email.mime.multipart import MIMEMultipart
+                            from email.mime.text import MIMEText
+                            from email.mime.base import MIMEBase
+                            from email import encoders
+                            from gmail_auth import send_email
+                            
+                            # Read Excel file to get data for email body
+                            report2_df = pd.read_excel(report_path, sheet_name='Report_2')
+                            report3_df = pd.read_excel(report_path, sheet_name='Report_3')
+                            
+                            # Generate HTML tables
+                            report2_html_table = report2_df.to_html(index=False, border=1)
+                            report3_html_table = report3_df[["Date", "Category", "Vendor", "Amount"]].to_html(index=False, border=1)
+                            
+                            # Extract month/year from filename
+                            filename = os.path.basename(report_path)
+                            # Format: Spending_Report_MM_YYYY.xlsx
+                            parts = filename.replace("Spending_Report_", "").replace(".xlsx", "").split("_")
+                            if len(parts) >= 2:
+                                mm = parts[0]
+                                yyyy = parts[1]
+                                date_str = f"{mm}/{yyyy}"
+                            else:
+                                date_str = "Current"
+                            
+                            # Build HTML email body with tables
+                            body_html = f"""
+                            <html>
+                            <body style="font-family: Arial, sans-serif;">
+                            <p>Hello,</p>
+                            <p>Your spending report for <strong>{date_str}</strong> is attached.</p>
+                            <h3>Category Summary</h3>
+                            {report2_html_table}
+                            <h3>Large Transactions (> $200)</h3>
+                            {report3_html_table}
+                            <p>Best regards,<br>Automated Report System</p>
+                            </body>
+                            </html>
+                            """
+                            
+                            msg = MIMEMultipart('alternative')
+                            msg['From'] = sender_email
+                            msg['To'] = to_addr
+                            msg['Subject'] = f'Spending Report for {date_str}'
+                            msg.attach(MIMEText(body_html, 'html'))
+                            
+                            # Attach the Excel file
+                            with open(report_path, 'rb') as f:
+                                part = MIMEBase('application', 'octet-stream')
+                                part.set_payload(f.read())
+                                encoders.encode_base64(part)
+                                part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(report_path)}"')
+                                msg.attach(part)
+                            
+                            # Send email
+                            print("\n" + "="*70)
+                            print("EMAIL DELIVERY (OAuth2)")
+                            print("="*70)
+                            print("⏳ Opening browser for Google authentication...")
+                            send_email(sender_email, to_addr, msg, method='oauth')
+                            print("✅ Email sent successfully to " + to_addr)
+                            print("="*70 + "\n")
+                        except Exception as e:
+                            print(f"❌ Failed to send email: {e}")
+                    else:
+                        print("No recipient provided; aborting send.")
+        
+        # Display AI tip at the end
+        print("="*70)
+        print("💡 TIP: Ask questions about your spending with AI!")
+        print("="*70)
+        print("\nUse Natural Language Query to analyze your data:")
+        print("\n  python3 natural_language_query.py")
+        print("\nExample questions:")
+        print('  • "How much did I spend on education?"')
+        print('  • "What\'s my highest spending category?"')
+        print('  • "Analyze my spending patterns and suggest savings"')
+        print("\nRuns completely locally - no API keys or internet needed!")
+        print("="*70 + "\n")
+        
         return result == 0
     except Exception as e:
         print(f"❌ Error: {e}")

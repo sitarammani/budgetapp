@@ -138,7 +138,9 @@ def prompt_install_model_now():
         response = 'n'
     
     if response == 'y':
-        print("\n📥 Starting Ollama model installation...\n")
+        print("\n📥 Starting Ollama model installation...")
+        print("   This may take 5-15 minutes depending on your connection.")
+        print("   Please keep the app running.\n")
         return prompt_for_ai_model_install()
     else:
         print("\n➡️  AI features will be disabled")
@@ -183,22 +185,32 @@ def prompt_for_ai_model_install():
                 )
                 time.sleep(2)
             
-            # Pull the model
+            # Pull the model with progress tracking (percentage only)
             print("📥 Downloading Llama 2 model (this is a one-time operation)...")
-            result = subprocess.run(
+            process = subprocess.Popen(
                 ["ollama", "pull", "llama2"],
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                timeout=900  # 15 minutes timeout
+                bufsize=1
             )
             
-            if result.returncode == 0:
+            # Read output in real-time and show only percentage progress
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    line = line.rstrip()
+                    # Only print lines with percentage or size indicators
+                    if "%" in line or "MB" in line or "GB" in line:
+                        print(f"   {line}")
+            
+            returncode = process.wait()
+            
+            if returncode == 0:
                 print("\n✅ Llama 2 model installed successfully!")
                 print("   AI features are now enabled.\n")
                 return True
             else:
                 print("\n❌ Failed to install Llama 2 model")
-                print("   Error:", result.stderr[:200])
                 print("   AI features will be disabled.\n")
                 return False
         except subprocess.TimeoutExpired:
@@ -341,6 +353,91 @@ def check_first_time_install():
     
     return config
 
+def prompt_sender_email_and_oauth(config, config_file):
+    """Prompt for sender email and setup OAuth if email changed or not set"""
+    saved_sender = config.get('sender_email', '')
+    print("\n📧 EMAIL CONFIGURATION")
+    print("─"*70)
+    
+    if saved_sender:
+        print(f"\nCurrent sender email: {saved_sender}")
+        try:
+            change = input("Use same email? (y/n): ").strip().lower()
+        except EOFError:
+            change = 'y'
+        
+        if change == 'y' or change == '':
+            print("✅ Using saved email configuration")
+            return
+    
+    # Ask for new sender email
+    print("\nEnter the email address you want to use for sending reports:")
+    try:
+        sender_email = input("Sender email: ").strip()
+    except EOFError:
+        sender_email = ''
+    
+    if not sender_email:
+        print("⚠️  No email provided. Email features will be available after restart.")
+        return
+    
+    # Setup OAuth for the email
+    print(f"\n🔐 Authenticating {sender_email} with Gmail...")
+    print("Opening browser for Gmail authentication...\n")
+    
+    try:
+        # Use a simplified OAuth setup without requiring pre-configured credentials
+        setup_gmail_oauth_interactive(sender_email)
+        
+        # Save sender email to config
+        config['sender_email'] = sender_email
+        config_dir = Path.home() / '.config' / 'SpendingApp'
+        config_dir.mkdir(parents=True, exist_ok=True)
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+        print(f"✅ Sender email saved: {sender_email}\n")
+    except Exception as e:
+        print(f"❌ OAuth authentication failed: {e}")
+        print("   Email features will be available after restart.\n")
+
+def setup_gmail_oauth_interactive(email):
+    """Setup Gmail OAuth2 with browser-based interactive flow"""
+    import webbrowser
+    from pathlib import Path
+    
+    config_dir = Path.home() / '.config' / 'SpendingApp'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create a minimal OAuth config for the GmailAuth class
+    # Using Google's public OAuth credentials for desktop apps
+    oauth_config = {
+        'client_id': '407408718192.apps.googleusercontent.com',
+        'client_secret': 'kapsy8Q8FeuJYcVfea_Bpr0T',
+        'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
+        'token_uri': 'https://oauth2.googleapis.com/token',
+        'redirect_uris': ['http://localhost:8080/', 'urn:ietf:wg:oauth:2.0:oob']
+    }
+    
+    oauth_config_file = os.path.join(os.path.dirname(__file__), '.gmail_oauth_config')
+    
+    # Save OAuth config temporarily if it doesn't exist
+    if not os.path.exists(oauth_config_file):
+        try:
+            with open(oauth_config_file, 'w') as f:
+                json.dump(oauth_config, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save OAuth config: {e}")
+    
+    # Now trigger the OAuth flow
+    try:
+        from gmail_auth import GmailAuth
+        auth = GmailAuth()
+        creds = auth.get_oauth2_credentials()
+        print("✅ Gmail authentication successful!")
+        return creds
+    except Exception as e:
+        raise Exception(f"Failed to authenticate with Gmail: {e}")
+
 def main():
     """Main launcher with progress bar"""
     
@@ -465,6 +562,9 @@ def main():
         print()
         sys.stdout.flush()
         sys.stderr.flush()
+        
+        # Prompt for sender email and setup OAuth
+        prompt_sender_email_and_oauth(config, config_file)
         
         # Launch main app
         if getattr(sys, 'frozen', False):
